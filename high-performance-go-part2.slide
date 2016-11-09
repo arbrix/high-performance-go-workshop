@@ -1,6 +1,7 @@
-High Performance Go
+High Performance Go (part2)
+Trasing, Memory, Concurrency
 Lviv, UA
-28 Oct 2016
+11 Nov 2016
 
 Ivan Kutuzov
 http://golang.org.ua/
@@ -27,6 +28,7 @@ This workshop is aimed at development teams who are building production Go appli
 
 Today we are going to cover three areas:
 
+- Short overview part1
 - Performance measurement and profiling
 - Memory management and GC tuning
 - Concurrency
@@ -36,6 +38,14 @@ Today we are going to cover three areas:
 This isn't a lecture, it's a conversation.
 
 If you don't understand something, or think what you're hearing is incorrect, speak up.
+
+* Overview part1
+
+- We've faced with the limitation at the hardware level, so programs should be more effective now
+- Golang has good tools for benchmarking and profiling
+- Benchmarking: "Don't guess, measure"
+- Profiling: CPU, Memory, Blockers
+- Critical for performance: reflection, defer, uncorrect using of mutex, channels, pinters, algorithms.
 
 * go tool trace
 
@@ -67,19 +77,9 @@ Viewing the trace:
         2016/08/13 17:01:05 Splitting trace...
         2016/08/13 17:01:06 Opening browser
 
-DEMO:
-
-        go tool trace examples/t.p
-
-Bonus: [[https://github.com/pkg/profile/releases/tag/v1.2.0][`github.com/pkg/profile`]] supports generating trace profiles.
+Bonus: github.com/pkg/profile supports generating trace profiles.
 
         defer profile.Start(profile.TraceProfile).Stop()
-
-* Exercises
-
-- Create a trace profile of your application using `go`tool`trace` and [[https://github.com/pkg/profile/releases/tag/v1.2.0][`github.com/pkg/profile`]].
-
-* Compiler optimisations
 
 * Compiler optimisations
 
@@ -150,18 +150,6 @@ This example is a little contrived.
 
 Even though `p` was allocated with the `new` function, it will not be stored on the heap, because no reference `p` escapes the `Center` function.
 
-Question: What about line 20, if `p` doesn't escape, what is escaping to the heap?
-
- examples/esc/center.go:20: p.X escapes to heap
- examples/esc/center.go:20: p.Y escapes to heap
-
-.link https://github.com/golang/go/issues/7714 Escape analysis is not perfect
-
-* Exercise
-
-- What is happening on line 25? Open up `examples/esc/sum.go` and see.
-- Write a benchmark to provide that `Sum` does not allocate
-
 * Inlining 
 
 In Go function calls in have a fixed overhead; stack and preemption check.
@@ -191,14 +179,6 @@ Again we use the `-m` flag to view the compilers optimisation decision.
  examples/max/max.go:13: inlining call to Max
 
 Compile `max.go` and see what the optimised version of `F()` became.
-
-DEMO: `go`build`-gcflags="-m`-S"`examples/max/max.go`2>&1`|`less`
-
-* Discussion
-
-- Why did I declare `a` and `b` in `F()` to be constants?
-- What happens if they are variables?
-- What happens if they are passing into `F()` as parameters?
 
 * Dead code elimination
 
@@ -240,8 +220,6 @@ Investigate the operation of the following compiler functions:
 .link http://go-talks.appspot.com/github.com/rakyll/talks/gcinspect/talk.slide#1 Further reading: Codegen Inspection by Jaana Burcu Dogan
 
 Perhaps we shall take a break now.
-
-* Memory management and GC tuning
 
 * Memory management and GC tuning
 
@@ -293,8 +271,6 @@ These stats are always collected, but normally suppressed, you can enable their 
 
 The trace output gives a general measure of GC activity.
 
-DEMO: Show `godoc` with `GODEBUG=gctrace=1` enabled
-
 * Garbage collector monitoring (cont.)
 
 Using `GODEBUG=gctrace=1` is good when you _know_ there is a problem, but for general telemetry on your Go application I recommend the `net/http/pprof` interface.
@@ -309,8 +285,6 @@ Importing the `net/http/pprof` package will register a handler at `/debug/pprof`
 *Warning*: `net/http/pprof` will register itself with your default `http.ServeMux`.
 
 Be careful as this will be visible if you use `http.ListenAndServe(address,`nil)`.
-
-DEMO: `godoc`-http=:8080`, show `/debug/pprof`.
 
 * Garbage collector tuning
 
@@ -341,8 +315,6 @@ Consider these two Read methods
 The first Read method takes no arguments and returns some data as a `[]byte`. The second takes a `[]byte` buffer and returns the amount of bytes read.
 
 The first Read method will _always_ allocate a buffer, putting pressure on the GC. The second fills the buffer it was given.
-
-_Exercise_: Can you name examples in the std lib which follow this pattern?
 
 * strings and []bytes
 
@@ -379,7 +351,17 @@ Go strings are immutable. Concatenating two strings generates a third. Which of 
 .code examples/concat/concat_test.go /START3 OMIT/,/END3 OMIT/
 .code examples/concat/concat_test.go /START4 OMIT/,/END4 OMIT/
 
+* Avoid string concatenation (cont.)
+
 DEMO: `go`test`-bench=.`./examples/concat`
+
+ % go test -bench=. ./examples/concat
+ BenchmarkConcatenate-8   	 2000000	       815 ns/op	     149 B/op	       6 allocs/op
+ BenchmarkFprintf-8       	 1000000	      1412 ns/op	     293 B/op	       8 allocs/op
+ BenchmarkSprintf-8       	 1000000	      1304 ns/op	     181 B/op	       7 allocs/op
+ BenchmarkStrconv-8       	 2000000	       690 ns/op	     165 B/op	       5 allocs/op
+ PASS
+ ok  	./examples/concat	7.311s
 
 * Preallocate slices if the length is known
 
@@ -425,16 +407,6 @@ The `sync` package comes with a `sync.Pool` type which is used to reuse common o
 Do not place important items in a `sync.Pool`, they will be discarded.
 
 _Personal_opinion_: `sync.Pool` is hard to use safely. Don't use `sync.Pool`.
-
-* Exercises
-
-- Using `godoc` (or another program) observe the results of changing `GOGC` using `GODEBUG=gctrace=1`.
-
-- Benchmark byte's string(byte) map keys
-
-- Benchmark allocs from different concat strategies.
-
-* Concurrency
 
 * Concurrency
 
@@ -487,7 +459,7 @@ Your disk subsystem does not expect to be able to handle hundreds or thousands o
 * io.Reader and io.Writer are not buffered
 
 `io.Reader` and `io.Writer` implementations are not buffered.
-	
+
 This includes `net.Conn` and `os.Stdout`.
 
 Use `bufio.NewReader(r)` and `bufio.NewWriter(w)` to get a buffered reader and writer.
@@ -586,10 +558,6 @@ Old version of Go receive no updates. Do not use them. Use the latest and you wi
 
 .link http://dave.cheney.net/2016/04/02/go-1-7-toolchain-improvements Go 1.7 toolchain improvements
 .link http://dave.cheney.net/2016/09/18/go-1-8-performance-improvements-one-month-in Go 1.8 performance improvements
-
-* Discussion
-
-Any questions?
 
 * Conclusion
 

@@ -15,12 +15,12 @@ func popcnt(x uint64) uint64 {
 	return (x * h01) >> 56
 }
 
+var n uint64
+
 func BenchmarkPopcnt(b *testing.B) {
-	var n uint64
 	for i := 0; i < b.N; i++ {
-		n = popcnt(uint64(i))
+		popcnt(uint64(i))
 	}
-	_ = n
 }
 
 // END OMIT
