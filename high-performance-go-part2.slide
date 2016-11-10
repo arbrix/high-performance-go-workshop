@@ -1,5 +1,4 @@
 High Performance Go (part2)
-Trasing, Memory, Concurrency
 Lviv, UA
 11 Nov 2016
 
@@ -218,8 +217,6 @@ Investigate the operation of the following compiler functions:
 - `-l`-N` disables all optimisations.
 
 .link http://go-talks.appspot.com/github.com/rakyll/talks/gcinspect/talk.slide#1 Further reading: Codegen Inspection by Jaana Burcu Dogan
-
-Perhaps we shall take a break now.
 
 * Memory management and GC tuning
 

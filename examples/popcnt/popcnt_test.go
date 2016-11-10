@@ -19,7 +19,7 @@ var n uint64
 
 func BenchmarkPopcnt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		popcnt(uint64(i))
+		n = popcnt(uint64(i))
 	}
 }
 
